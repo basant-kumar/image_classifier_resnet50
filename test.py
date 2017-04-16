@@ -7,9 +7,10 @@ from resnet50 import ResNet50
 import numpy as np
 import argparse
 import cv2
+from keras.models import Model
 
-#import matplotlib.pyplot as plt
- 
+
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True,
@@ -35,33 +36,35 @@ image = image_utils.img_to_array(image)
 image = np.expand_dims(image, axis=0)
 image = preprocess_input(image)
 
-#plt.imshow(image)
-#plt.show()
 
 # load the ResNet50 network
 print("[INFO] loading network...")
 model = ResNet50(weights="imagenet")
-#print(model.summary()) 
+
 # classify the image
 print("[INFO] classifying image...")
+# get the symbolic outputs of each "key" layer (we gave them unique names).
+layer_outputs = [layer.output for layer in model.layers]
+viz_model = Model(input=model.input, output=layer_outputs)
 preds = model.predict(image)
-P = decode_predictions(preds,top=10000)
+
+features = viz_model.predict(image)
+pool=features[174]
+
+
+P = decode_predictions(preds,top=10)
 
 (imagenetID, label1, prob)=P[0][0];
 
 #writing embeddings to TSV file
-
-with open("embeddings.tsv","w") as fp:
-	fp.write("#\timageID\tLabel\tProbability\n")
-	for (i, (imagenetID, label, prob)) in enumerate(P[0]):
+print(pool.shape)
+with open("globel_pool.tsv","w") as fp:
+	fp.write("#\tFeatures (Channels)\n")
+	for (i, val) in enumerate(pool[0][0][0]):
 		fp.write(str(i+1))
 		fp.write("\t")
-		fp.write(imagenetID)
-		fp.write("\t")
-		fp.write(label)
-		fp.write("\t")
-		fp.write(str(prob*100))
-		fp.write("%\n")
+		fp.write(str(val))
+		fp.write("\n")
 	fp.close()
 
 
@@ -71,9 +74,9 @@ for (i, (imagenetID, label, prob)) in enumerate(P[0]):
 	print("{}. {}: {:.2f}%".format(i + 1, label, prob * 100))
 
 #print('Predicted:', decode_predictions(preds, top=5)[0])
-
+'''
 cv2.putText(orig, "Label: {}".format(label1), (10, 30),
 	cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 cv2.imshow("Classification", orig)
 cv2.waitKey(0)
-
+'''
